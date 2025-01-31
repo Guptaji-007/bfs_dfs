@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Path Visualization</title>
+    <style>
+        @font-face {
+            font-family: 'Neon Glow';
+            src: url(https://assets.codepen.io/230569/NeonGlow-8VLz.ttf);
+        }
+
+        body {
+            font-family: 'Neon Glow', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #101010;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 80px);
+            grid-template-rows: repeat(5, 80px);
+            gap: 10px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+
+        .cell {
+            --blur: 1.75rem;
+            --box-blur: calc(0.5 * var(--blur));
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 4px solid currentColor;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            color: var(--color, #666);
+            box-shadow: 
+                inset 0 0 0 2px rgba(0, 0, 0, 0.15),
+                0 0 0 2px rgba(0, 0, 0, 0.15),
+                inset 0 0 var(--box-blur) var(--glow),
+                0 0 var(--box-blur) var(--glow);
+        }
+
+        .start {
+            --color: #4caf50;
+            --glow: #4caf50;
+            color: var(--color);
+            text-shadow: 0 0 var(--blur) var(--glow);
+        }
+
+        .end {
+            --color: #f44336;
+            --glow: #f44336;
+            color: var(--color);
+            text-shadow: 0 0 var(--blur) var(--glow);
+        }
+
+        .yantra {
+            --color: #E555C7;
+            --glow: #E555C7;
+            color: var(--color);
+            text-shadow: 0 0 var(--blur) var(--glow);
+            filter: brightness(125%);
+        }
+
+        .obstacle {
+            --color: #B7E7F7;
+            --glow: #B7E7F7;
+            color: var(--color);
+            text-shadow: 0 0 var(--blur) var(--glow);
+            filter: saturate(200%);
+        }
+
+        .current {
+            --color: #03a9f4;
+            --glow: #03a9f4;
+            color: var(--color);
+            text-shadow: 0 0 var(--blur) var(--glow);
+            animation: neonPulse 1s infinite;
+        }
+
+        @keyframes neonPulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .controls button {
+            margin: 0 5px;
+            padding: 20px 25px;
+            cursor: pointer;
+            border: 4px solid #6eeafd7e;
+            border-radius: 50px;
+            background-color: transparent;
+            color: #18ee9f;
+            text-shadow: 0 0 5px #007bff;
+            transition: all 0.3s ease;
+        }
+
+        .controls button:hover {
+            background-color: #000000;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(0, 123, 255, 0.8);
+        }
+
+        .controls button:disabled {
+            border-color: #666;
+            color: #666;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <button id="set-start">Set Start</button>
+        <button id="set-end">Set End</button>
+        <button id="set-yantra">Set Yantra</button>
+        <button id="set-obstacle">Set Obstacle</button>
+        <button id="run-bfs">Run BFS</button>
+        <button id="run-dfs">Run DFS</button>
+        <button id="reset">Reset</button>
+    </div>
+    <div class="grid-container" id="grid"></div>
+
+    <script>
+        const gridSize = 5;
+        let mode = null;
+        const startPoint = { row: 0, col: 0 };
+        const endPoint = { row: 4, col: 4 };
+        const yantraPoints = [];
+        const obstacles = [];
+
+        // Create the grid
+        const gridContainer = document.getElementById('grid');
+        for (let row = 0; row < gridSize; row++) {
+            for (let col = 0; col < gridSize; col++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.row = row;
+                cell.dataset.col = col;
+                cell.addEventListener('click', () => handleCellClick(row, col));
+                gridContainer.appendChild(cell);
+            }
+        }
+
+        function updateGrid() {
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('start', 'end', 'yantra', 'obstacle', 'path', 'current');
+                cell.innerHTML = '';
+            });
+
+            document.querySelector(`[data-row='${startPoint.row}'][data-col='${startPoint.col}']`).classList.add('start');
+            document.querySelector(`[data-row='${startPoint.row}'][data-col='${startPoint.col}']`).innerHTML = 'P';
+            document.querySelector(`[data-row='${endPoint.row}'][data-col='${endPoint.col}']`).classList.add('end');
+            document.querySelector(`[data-row='${endPoint.row}'][data-col='${endPoint.col}']`).innerHTML = 'E';
+
+            yantraPoints.forEach(({ row, col }, index) => {
+                const cell = document.querySelector(`[data-row='${row}'][data-col='${col}']`);
+                cell.classList.add('yantra');
+                cell.innerHTML = `Y${index + 1}`;
+            });
+            obstacles.forEach(({ row, col }) => {
+                document.querySelector(`[data-row='${row}'][data-col='${col}']`).classList.add('obstacle');
+                document.querySelector(`[data-row='${row}'][data-col='${col}']`).innerHTML = '#';
+            });
+        }
+
+        function handleCellClick(row, col) {
+            if (mode === 'start') {
+                startPoint.row = row;
+                startPoint.col = col;
+            } else if (mode === 'end') {
+                endPoint.row = row;
+                endPoint.col = col;
+            } else if (mode === 'yantra') {
+                yantraPoints.push({ row, col });
+            } else if (mode === 'obstacle') {
+                obstacles.push({ row, col });
+            }
+
+            updateGrid();
+        }
+
+        function resetGrid() {
+            mode = null;
+            startPoint.row = 0;
+            startPoint.col = 0;
+            endPoint.row = 4;
+            endPoint.col = 4;
+            yantraPoints.length = 0;
+            obstacles.length = 0;
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('start', 'end', 'yantra', 'obstacle', 'path', 'current');
+                cell.innerHTML = '';
+            });
+            updateGrid();
+        }
+
+        function visualizePath(path, type) {
+            let currentStep = 0;
+            
+            function moveToNextStep() {
+                if (currentStep > 0) {
+                    const [prevRow, prevCol] = path[currentStep - 1];
+                    const prevCell = document.querySelector(`[data-row='${prevRow}'][data-col='${prevCol}']`);
+                    if (!prevCell.classList.contains('start') && !prevCell.classList.contains('end')) {
+                        prevCell.classList.remove('current');
+                    }
+                }
+
+                if (currentStep < path.length) {
+                    const [row, col] = path[currentStep];
+                    const cell = document.querySelector(`[data-row='${row}'][data-col='${col}']`);
+                    if (!cell.classList.contains('start') && !cell.classList.contains('end')) {
+                        cell.classList.add('current');
+                    }
+                    currentStep++;
+                    setTimeout(moveToNextStep, 500);
+                } else {
+                    alert(`${type} path visualization complete!`);
+                }
+            }
+
+            moveToNextStep();
+        }
+
+        // Add debug logging
+        let yantraCounter = 1;
+
+        function getGridData() {
+            yantraCounter = 1; // Reset counter at start
+            const grid = [];
+            for (let row = 0; row < gridSize; row++) {
+                const gridRow = [];
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.querySelector(`[data-row='${row}'][data-col='${col}']`);
+                    if (cell.classList.contains('start')) {
+                        gridRow.push('P');
+                    } else if (cell.classList.contains('end')) {
+                        gridRow.push('E');
+                    } else if (cell.classList.contains('yantra')) {
+                        gridRow.push(`Y${yantraCounter++}`);
+                    } else if (cell.classList.contains('obstacle')) {
+                        gridRow.push('#');
+                    } else {
+                        gridRow.push('.');
+                    }
+                }
+                grid.push(gridRow);
+            }
+            console.log('Grid data:', grid);
+            return grid;
+        }
+
+        async function fetchPath(strategy) {
+            try {
+                const grid = getGridData();
+                yantraCounter = 1; // Reset counter after grid creation
+                
+                const response = await fetch('http://localhost:3002/path', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ strategy, grid }),
+                });
+                const data = await response.json();
+                console.log('Path received:', data.path);
+                return data.path;
+            } catch (error) {
+                console.error('Error fetching path:', error);
+                return null;
+            }
+        }
+
+        document.getElementById('set-start').addEventListener('click', () => mode = 'start');
+        document.getElementById('set-end').addEventListener('click', () => mode = 'end');
+        document.getElementById('set-yantra').addEventListener('click', () => mode = 'yantra');
+        document.getElementById('set-obstacle').addEventListener('click', () => mode = 'obstacle');
+        document.getElementById('run-bfs').addEventListener('click', async () => {
+            const bfsPath = await fetchPath('BFS');
+            if (bfsPath && bfsPath.length > 0) {
+                visualizePath(bfsPath, 'BFS');
+            } else {
+                alert('No path found using BFS');
+            }
+        });
+        document.getElementById('run-dfs').addEventListener('click', async () => {
+            const dfsPath = await fetchPath('DFS');
+            if (dfsPath && dfsPath.length > 0) {
+                visualizePath(dfsPath, 'DFS');
+            } else {
+                alert('No path found using DFS');
+            }
+        });
+
+        document.getElementById('reset').addEventListener('click', resetGrid);
+
+        updateGrid();
+    </script>
+</body>
+</html>
