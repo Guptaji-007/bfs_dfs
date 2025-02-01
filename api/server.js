@@ -1,15 +1,32 @@
+const express = require('express');
+const bodyParser = require('body-parser');
 const { spawn } = require('child_process');
+const path = require('path');
+const cors = require('cors');
 
-module.exports = (req, res) => {
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method Not Allowed' });
-    }
+const app = express();
 
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, '..')));
+
+// Serve index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
+// Handle path finding requests
+app.post('/api/path', (req, res) => {
     try {
         const { strategy, grid } = req.body;
         console.log('Received request:', { strategy, grid });
 
-        const pythonProcess = spawn('python3', ['logic.py', JSON.stringify(grid), strategy]);
+        const pythonProcess = spawn('python3', [
+            path.join(__dirname, '..', 'logic.py'),
+            JSON.stringify(grid),
+            strategy
+        ]);
 
         let dataString = '';
 
@@ -22,6 +39,7 @@ module.exports = (req, res) => {
         });
 
         pythonProcess.on('close', (code) => {
+            console.log('Python process exited with code:', code);
             if (code === 0) {
                 try {
                     const result = JSON.parse(dataString);
@@ -39,4 +57,12 @@ module.exports = (req, res) => {
         console.error('Server error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-};
+});
+
+// Error handling
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Something broke!' });
+});
+
+module.exports = app;
