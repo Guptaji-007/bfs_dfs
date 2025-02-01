@@ -1,15 +1,15 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/yantra_collector.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/yantra_collector",
-      "dest": "/api/yantra_collector.py"
-    }
-  ]
-}
+    "version": 2,
+    "builds": [
+      {
+        "src": "api/**/*.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/(.*)",
+        "dest": "/api/index.js"
+      }
+    ]
+  }
