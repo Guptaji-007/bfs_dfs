@@ -79,6 +79,7 @@ class YantraCollector:
         return neighbours
 
     def bfs(self, start, goal):
+        print(f"Starting BFS from {start} to {goal}", file=sys.stderr)
         path = []  # path to be returned  
         frontier_list = [start] # list of nodes to be explored
         explored_list = [] # list of nodes that have been explored 
@@ -88,6 +89,7 @@ class YantraCollector:
             current_node = frontier_list.pop(0)
             explored_list.append(current_node)
             if current_node == goal:
+                print(f"Goal {goal} found using BFS", file=sys.stderr)
                 self.total_frontier_nodes += len(frontier_list)
                 self.total_explored_nodes += len(explored_list)
                 # if the current node is the goal node then we will backtrack to get the path
@@ -106,9 +108,11 @@ class YantraCollector:
                     frontier_list.append(neighbour)
                     track_map.append((neighbour, current_node))
 
+        print("No path found using BFS", file=sys.stderr)
         return None
 
     def dfs(self, start, goal):
+        print(f"Starting DFS from {start} to {goal}", file=sys.stderr)
         path = []  # path to be returned  
         frontier_list = [start] # list of nodes to be explored
         explored_list = [] # list of nodes that have been explored 
@@ -119,6 +123,7 @@ class YantraCollector:
             explored_list.append(current_node)
             # if the current node is the goal node then we will backtrack to get the path
             if current_node == goal:
+                print(f"Goal {goal} found using DFS", file=sys.stderr)
                 self.total_frontier_nodes += len(frontier_list)
                 self.total_explored_nodes += len(explored_list)
                 while current_node is not None:
@@ -135,9 +140,11 @@ class YantraCollector:
                     frontier_list.insert(0,neighbour) # insert the neighbour at the beginning of the frontier list
                     track_map.append((neighbour, current_node))
 
+        print("No path found using DFS", file=sys.stderr)
         return None
 
     def solve(self, strategy):
+        print(f"Solving using {strategy}", file=sys.stderr)
         # check if the strategy is BFS or DFS
         if strategy == "BFS":
             search_method = self.bfs
@@ -148,6 +155,7 @@ class YantraCollector:
 
         # If no yantras, find direct path to exit
         if not self.yantras:
+            print("No yantras found, finding direct path to exit", file=sys.stderr)
             path = search_method(self.start, self.exit)
             if path:
                 return path, self.total_frontier_nodes, self.total_explored_nodes
@@ -156,10 +164,12 @@ class YantraCollector:
         final_path = [] # final path to be returned 
         current_pos = self.start
         while True:
+            print(f"Current position: {current_pos}, Revealed yantra: {self.revealed_yantra}", file=sys.stderr)
             # get the path from the current position to the revealed yantra
             path = search_method(current_pos, self.revealed_yantra)
             
             if not path: # if the path is None then return None
+                print("No path found to the revealed yantra", file=sys.stderr)
                 return None, self.total_frontier_nodes, self.total_explored_nodes
             
             if final_path: # if the final path is not empty then remove the first element of the path to avoid repetition
