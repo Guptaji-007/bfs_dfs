@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
 });
 
 // Handle path finding requests
-app.post('/path', (req, res) => {
+app.post('/api/path', (req, res) => {
     try {
         const { strategy, grid } = req.body;
         console.log('Received request:', { strategy, grid });
