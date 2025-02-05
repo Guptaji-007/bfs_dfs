@@ -23,7 +23,7 @@ app.post('/api/path', (req, res) => {
         console.log('Received request:', { strategy, grid });
 
         const pythonProcess = spawn('python3', [
-            path.join(__dirname, '..', 'logic.py'),
+            path.join(__dirname, 'logic.py'),
             JSON.stringify(grid),
             strategy
         ]);
